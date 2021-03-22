@@ -1,0 +1,6 @@
+hdf5: 'sim000.hdf5'
+patches: ['pb1ra23hab_3x3', 'pb1ra12hab_3x3', 'pb1lst4p5_3x3']
+sources: ['PB1RA23HAB', 'PB1RA12HAB', 'PB1LST4p5']
+thresh: 0.5
+plot_num: 2 # The top 'N' worst average difference and maximum difference days to consider per patch
+output_dir: 'outputs/check_pmasks'
