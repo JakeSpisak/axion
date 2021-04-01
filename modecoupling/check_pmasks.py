@@ -25,8 +25,22 @@ def make_pmask(path, source):
     pmask = window_hdf5.standard_pol_mask(m,pweight)
     
     return pmask
+
+def make_padded_map(path, source):
+    """
+    Make the padded I, Q, and U maps from a hdf5 file.
+    INPUTS:
+    path (str): path to hdf5 file
+    source (str): 'PB1RA23HAB', 'PB1RA12HAB', or 'PB1LST4p5'
+    OUTPUTS:
+    I, Q, U (arrays
+    """
+    m,tweight,pweight = mode.prepare_map(path,source)
+    I, Q, U = window_hdf5.get_iqu(m)
     
-def pmasks_plot_diff(path1, path2, source, day, output_file):
+    return I, Q, U
+    
+def pmasks_plot_diff(path1, path2, source, day, output_file=False):
     """
     Plot the coadd pmask, daily pmask, and their difference.
     INPUTS:
@@ -55,12 +69,13 @@ def pmasks_plot_diff(path1, path2, source, day, output_file):
     fig.colorbar(im1, ax=ax1)
     
     ax2.set_title("Difference")
-    im2 = ax2.imshow(pmask1-pmask2, vmin=-1, vmax=1)
+    im2 = ax2.imshow(pmask1-pmask2)
     ax2.set_xlabel('pixels')
     ax2.set_ylabel('pixels')
     fig.colorbar(im2, ax=ax2)
     
-    plt.savefig(output_file)
+    if output_file:
+        plt.savefig(output_file)
     
 def max_diff(pmask1, pmask2, thresh):
     """
@@ -96,6 +111,34 @@ def avg_diff(pmask1, pmask2, thresh):
             counter += 1
             sum_diff += np.abs(p1-p2)        
     return sum_diff/counter
+
+def pixel_vars(pmask, zero_val = 10**4):
+    var = np.ones(np.shape(pmask))*zero_val
+    for i in range(len(pmask)):
+        for j in range(len(pmask[i])):
+            if pmask[i,j] != 0.0:
+                var[i,j] = 1/pmask[i,j]
+    return var
+
+def compute_map_avg_var(weights, pixel_vars):
+    weights = np.ndarray.flatten(weights)
+    pixel_vars = np.ndarray.flatten(pixel_vars)
+    N = np.sum(weights)
+    pixel_contributions = weights**2*pixel_vars/N**2
+    map_avg_var = np.sum(pixel_contributions)
+    
+    return map_avg_var, pixel_contributions
+
+def compute_fractional_var_increase(path_coadd, path_day, source):
+    pmask_day = make_pmask(path_day, source)
+    pmask_coadd = make_pmask(path_coadd, source)
+    pvars = pixel_vars(pmask_day)
+    
+    map_avg_var_day, pixel_contributions_day = compute_map_avg_var(pmask_day, pvars)
+    map_avg_var_coadd, pixel_contributions_coadd = compute_map_avg_var(pmask_coadd, pvars) 
+    frac_var = map_avg_var_coadd/map_avg_var_day-1
+
+    return frac_var, pixel_contributions_day, pixel_contributions_coadd
 
 if __name__ == "__main__":
     input_yaml = sys.argv[1]
