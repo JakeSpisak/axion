@@ -11,8 +11,11 @@ import glob
 import sys
 import yaml
 import os
+from AnalysisBackend.mapping import maprep
+from AnalysisBackend.mapping import polwindow
+from AnalysisBackend.powerspectrum import psestimator
 
-def make_pmask(path, source):
+def make_pmask(path, source, mask_cut=0.01, window=0):
     """
     Make the pmask from a hdf5 file.
     INPUTS:
@@ -22,9 +25,30 @@ def make_pmask(path, source):
     pmask (array)
     """
     m,tweight,pweight = mode.prepare_map(path,source)
-    pmask = window_hdf5.standard_pol_mask(m,pweight)
+    pmask = window_hdf5.standard_pol_mask(m,pweight, mask_cut=mask_cut)
+    if window:
+        for i in range(len(pmask)):
+            for j in range(len(pmask[i])):
+                if pmask[i,j]<window:
+                    pmask[i,j] = 0
     
     return pmask
+
+def get_pweight(path):
+    """
+    Gets the polarization weights from a hdf5 file. Doesn't do any filtering, but does pad the array.
+    INPUTS:
+    path (str): path to hdf5 file
+    OUTPUTS:
+    pweights (array)
+    """
+    m = maprep.MapMakingVectors.load(path)
+    cc = m.mapinfo.view2d(m.cc)
+    cs = m.mapinfo.view2d(m.cs)
+    ss = m.mapinfo.view2d(m.ss)
+    pweight = polwindow.qu_weight_mineig(cc,cs,ss)
+    pweight = psestimator.extend_mask_fft(pweight)
+    return pweight
 
 def make_padded_map(path, source):
     """
@@ -112,33 +136,52 @@ def avg_diff(pmask1, pmask2, thresh):
             sum_diff += np.abs(p1-p2)        
     return sum_diff/counter
 
-def pixel_vars(pmask, zero_val = 10**4):
-    var = np.ones(np.shape(pmask))*zero_val
-    for i in range(len(pmask)):
-        for j in range(len(pmask[i])):
-            if pmask[i,j] != 0.0:
-                var[i,j] = 1/pmask[i,j]
+def pixel_vars(pweight):
+    pweight = pweight/np.max(pweight)
+#    var = np.ones(np.shape(pweight))*1000/np.min(pweight[np.nonzero(pweight)])
+    var = np.zeros(np.shape(pweight))
+    for i in range(len(pweight)):
+        for j in range(len(pweight[i])):
+            if pweight[i,j] != 0.0:
+                var[i,j] = 1/pweight[i,j]
     return var
 
 def compute_map_avg_var(weights, pixel_vars):
-    weights = np.ndarray.flatten(weights)
-    pixel_vars = np.ndarray.flatten(pixel_vars)
     N = np.sum(weights)
     pixel_contributions = weights**2*pixel_vars/N**2
     map_avg_var = np.sum(pixel_contributions)
     
     return map_avg_var, pixel_contributions
 
-def compute_fractional_var_increase(path_coadd, path_day, source):
-    pmask_day = make_pmask(path_day, source)
-    pmask_coadd = make_pmask(path_coadd, source)
-    pvars = pixel_vars(pmask_day)
+def compute_fractional_var_increase(pmask_coadd, pmask_day, pweight, window=False):
+    pmask_coadd = pmask_coadd.copy()
+    if window:
+        for i in range(len(pmask_coadd)):
+            for j in range(len(pmask_coadd[i])):
+                if pmask_coadd[i,j]<window:
+                    pmask_coadd[i,j] = 0
+        
+    pvars = pixel_vars(pweight)
     
     map_avg_var_day, pixel_contributions_day = compute_map_avg_var(pmask_day, pvars)
-    map_avg_var_coadd, pixel_contributions_coadd = compute_map_avg_var(pmask_coadd, pvars) 
+    map_avg_var_coadd, pixel_contributions_coadd = compute_map_avg_var(pmask_coadd, pvars)
+    
     frac_var = map_avg_var_coadd/map_avg_var_day-1
+    frac_var_pixel = (pixel_contributions_coadd-pixel_contributions_day)/map_avg_var_day
 
-    return frac_var, pixel_contributions_day, pixel_contributions_coadd
+    return frac_var, frac_var_pixel
+
+def days_list():
+    """Return a list of all day names"""
+    days = []
+    for patch in ['pb1lst4p5_3x3', 'pb1ra12hab_3x3', 'pb1ra23hab_3x3']:
+        days.extend(patch_days_list(patch))
+    return days
+
+def patch_days_list(patch):
+    """Given a patch folder (e.g. pb1lst4p5), return a list of days"""
+    days_dir = "/global/cscratch1/sd/jspisak/pipeline/data/sim_signal_only/{}/sim_signal_only/".format(patch)
+    return [day_dir.split('/')[-1] for day_dir in glob.glob(days_dir + "201*")]
 
 if __name__ == "__main__":
     input_yaml = sys.argv[1]

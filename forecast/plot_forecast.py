@@ -39,12 +39,16 @@ bicep_angle = 0.68
 bicep_masses, bicep_gs = angle_plot(bicep_lims, bicep_angle, k, rho) 
 
 SA_lims = [1.5*10**-21/3, hz_to_m((3600*24)**-1)]
-SA_angle = 4*2*1.5/60. #2x 68% lim plus 50% degredation
+SA_angle = 4*2*1.3/60. #2x 68% lim plus 30% degredation
 SA_masses, SA_gs = angle_plot(SA_lims, SA_angle, k, rho) 
 
 SO_lims = [1.5*10**-21/2, hz_to_m((3600*24)**-1)]
-SO_angle = 0.32*2*1.5/60. #2x 68% lim plus 50% degredation
+SO_angle = 0.32*2*1.3/60. #2x 68% lim plus 30% degredation
 SO_masses, SO_gs = angle_plot(SO_lims, SO_angle, k, rho) 
+
+ACT_lims = [1.5*10**-21/2, hz_to_m((3600*24)**-1)]
+ACT_angle = 0.06*2*1.3 #2x 68% lim plus 30% degredation
+ACT_masses, ACT_gs = angle_plot(ACT_lims, ACT_angle, k, rho) 
 
 tenth_lims = [10**-23, 10**-18]
 tenth_angle = 0.1
@@ -68,23 +72,24 @@ xmax = 10**-18
 ymin, ymax = 10**-14, 10**-9
 
 # Bounds
-ax1.axvline(lyman, c='k', ls=':')
-ax1.axvspan(xmin, lyman, alpha=0.2, color='grey')
-ax1.axhline(SN1987a, c='k', ls='--')
-ax1.axhline(cast, c='k', ls='-.')
-ax1.axhspan(SN1987a, ymax, alpha=0.2, color='grey')
+# ax1.axvline(lyman, c='k', ls=':')
+# ax1.axvspan(xmin, lyman, alpha=0.2, color='grey')
+# ax1.axhline(SN1987a, c='k', ls='--')
+# ax1.axhline(cast, c='k', ls='-.')
+# ax1.axhspan(SN1987a, ymax, alpha=0.2, color='grey')
 
 # Angles
 ax1.loglog(bicep_masses, bicep_gs, c='b', label='Keck 2012 (smoothed)')
 ax1.loglog(SA_masses, SA_gs, c='r', ls='--', label='SA (projected)')
 ax1.loglog(SO_masses, SO_gs, c='c', ls='--', label='SO (projected)')
-ax1.loglog(wash_masses, wash_gs, c='tab:green', label=r'Washout (Fedderke et al.)')
+ax1.loglog(ACT_masses, ACT_gs, c='tab:orange', ls='--', label='ACT (projected from 2014/2015 data)')
+# ax1.loglog(wash_masses, wash_gs, c='tab:green', label=r'Washout (Fedderke et al.)')
 
 ax1.set_xlabel(r"$m_{\phi}$ [eV]", fontsize=14)
 ax1.set_ylabel(r"$g_{\phi \gamma}$ $[GeV^{-1}]$", fontsize=16)
 ax1.set_xlim(2*10**-22, 10**-19)
 ax1.set_ylim(10**-13, 10**-9)
-ax1.legend(prop={'size':16})
+ax1.legend(prop={'size':10})
 
 #Arrows
 ax1.annotate('', xy=(0.95*np.max(bicep_masses), np.max(bicep_gs)),
@@ -93,6 +98,9 @@ ax1.annotate('', xy=(0.95*np.max(bicep_masses), np.max(bicep_gs)),
 ax1.annotate('', xy=(0.95*np.max(SA_masses), np.max(SA_gs)),
              xytext=(0.95*np.max(SA_masses), 0.6*np.max(SA_gs)),
              arrowprops=dict(arrowstyle= '<|-', color='r', lw=1.5))
+ax1.annotate('', xy=(0.95*np.max(ACT_masses), np.max(ACT_gs)),
+             xytext=(0.95*np.max(ACT_masses), 0.6*np.max(ACT_gs)),
+             arrowprops=dict(arrowstyle= '<|-', color='tab:orange', lw=1.5))
 ax1.annotate('', xy=(0.95*np.max(SO_masses), np.max(SO_gs)),
              xytext=(0.95*np.max(SO_masses), 0.6*np.max(SO_gs)),
              arrowprops=dict(arrowstyle= '<|-', color='c', lw=1.5))
@@ -109,4 +117,4 @@ ax2.set_xticks(m_ticks)
 ax2.set_xticklabels([ r'$10^{-7}$', r'$10^{-6}$', r'$10^{-5}$'])
 ax2.set_xlabel(r"Oscillation frequency (Hz)", fontsize=16)
 
-plt.savefig("outputs/CPR_projections.png")
+plt.savefig("outputs/CPR_projections_axion_only.png", bbox_inches='tight')
